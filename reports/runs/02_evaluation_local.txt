@@ -1,0 +1,15 @@
+{
+  "n_questions": 36,
+  "retrieval_hit_at_1": 0.9355,
+  "retrieval_hit_at_k": 0.9677,
+  "retrieval_mrr": 0.9516,
+  "answer_accuracy": 0.9355,
+  "citation_accuracy": 0.9355,
+  "tool_accuracy": 1.0,
+  "refusal_accuracy": 1.0,
+  "injection_block_rate": 1.0,
+  "pii_mask_rate": 1.0,
+  "latency_p50_ms": 3.29,
+  "latency_p95_ms": 4.12
+}
+QUALITY GATE : OK

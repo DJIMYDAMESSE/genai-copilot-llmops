@@ -1,0 +1,73 @@
+# Serveur LLM vLLM (API compatible OpenAI) sur un noeud GPU.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-cache
+  namespace: genai-copilot
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: genai-copilot
+  labels: { app: vllm }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: vllm }
+  template:
+    metadata:
+      labels: { app: vllm }
+    spec:
+      nodeSelector:
+        accelerator: nvidia-gpu
+      tolerations:
+        - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.10.2
+          args:
+            - --model=Qwen/Qwen2.5-7B-Instruct
+            - --served-model-name=Qwen/Qwen2.5-7B-Instruct
+            - --max-model-len=8192
+            - --gpu-memory-utilization=0.90
+            - --enable-prefix-caching
+            - --port=8000
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom: { secretKeyRef: { name: copilot-secrets, key: HF_TOKEN, optional: true } }
+          ports: [{ containerPort: 8000, name: http }]
+          resources:
+            limits: { nvidia.com/gpu: 1, memory: 32Gi }
+            requests: { cpu: "4", memory: 24Gi }
+          volumeMounts:
+            - { name: hf-cache, mountPath: /root/.cache/huggingface }
+            - { name: shm, mountPath: /dev/shm }
+          startupProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+            failureThreshold: 90   # jusqu'à 15 min pour télécharger et charger le modèle
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim: { claimName: hf-cache }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 8Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: genai-copilot
+  labels: { app: vllm }
+spec:
+  selector: { app: vllm }
+  ports: [{ name: http, port: 8000, targetPort: 8000 }]

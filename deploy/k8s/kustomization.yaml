@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: genai-copilot
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - vllm.yaml
+  - api.yaml
+  - ingress.yaml
+# Secret : à créer hors dépôt (kubectl create secret ... ou External Secrets)
+images:
+  - name: ghcr.io/djimydamesse/genai-copilot-llmops
+    newTag: latest

@@ -1,0 +1,13 @@
+{
+  "requests": 400,
+  "concurrency": 20,
+  "duration_s": 9.92,
+  "throughput_rps": 40.3,
+  "error_rate": 0.0,
+  "latency_ms": {
+    "p50": 306.9,
+    "p95": 927.2,
+    "p99": 1624.8,
+    "max": 1749.4
+  }
+}

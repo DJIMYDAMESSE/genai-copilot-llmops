@@ -1,0 +1,9 @@
+Ablation exécutée : impact de top_k et de la taille des chunks (suivi MLflow, expérience copilot-rag-eval)
+
+| top_k | chunk_size | hit@k | MRR | exactitude | citation | refus | p95 (ms) |
+|---|---|---|---|---|---|---|---|
+| 2 | 700 | 96.8% | 0.952 | 93.5% | 93.5% | 100% | 3.5 |
+| 4 | 400 | 96.8% | 0.952 | 93.5% | 93.5% | 100% | 3.94 |
+| 4 | 700 | 96.8% | 0.952 | 93.5% | 93.5% | 100% | 3.78 |
+| 6 | 700 | 100.0% | 0.958 | 93.5% | 93.5% | 100% | 4.03 |
+| 4 | 1200 | 96.8% | 0.952 | 93.5% | 93.5% | 100% | 4.11 |

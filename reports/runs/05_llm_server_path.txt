@@ -1,0 +1,87 @@
+Scénario exécuté : API FastAPI (2 workers) -> serveur LLM compatible OpenAI (même contrat que vLLM/Ollama).
+Le serveur LLM utilisé ici est scripts/mock_llm_server.py, avec une latence simulée de 300 ms
+(aucun téléchargement de modèle n'était possible dans l'environnement d'exécution).
+
+### 1. LLM disponible
+{
+  "answer": "D'après la documentation : Hôtel : 120 € par nuit en province, 170 € par nuit à Paris, petit-déjeuner inclus. [1]",
+  "model": "mock-qwen2.5-7b-instruct",
+  "fallback_used": false,
+  "usage": {
+    "prompt_tokens": 216,
+    "completion_tokens": 21,
+    "llm_latency_ms": 290.27
+  },
+  "steps": [
+    "guard",
+    "route",
+    "retrieve",
+    "generate:mock-qwen2.5-7b-instruct",
+    "verify:ok"
+  ],
+  "latency_ms": 308.3
+}
+
+### 2. Test de charge à travers le serveur LLM, sans erreur injectée
+{
+  "requests": 400,
+  "concurrency": 20,
+  "duration_s": 5.94,
+  "throughput_rps": 67.3,
+  "error_rate": 0.0,
+  "latency_ms": {
+    "p50": 279.5,
+    "p95": 394.8,
+    "p99": 403.6,
+    "max": 446.7
+  }
+}
+Bascules vers le repli : 0.0
+
+### 3. Serveur LLM instable : 20 % de réponses HTTP 503 injectées
+{
+  "requests": 400,
+  "concurrency": 20,
+  "duration_s": 9.92,
+  "throughput_rps": 40.3,
+  "error_rate": 0.0,
+  "latency_ms": {
+    "p50": 306.9,
+    "p95": 927.2,
+    "p99": 1624.8,
+    "max": 1749.4
+  }
+}
+Bascules vers le repli pendant ce test : 3 sur 400 (les autres erreurs ont été absorbées par les retries)
+
+### 4. Panne totale du serveur LLM : bascule automatique sur le moteur local, aucune erreur côté utilisateur
+{
+  "answer": "Hôtel : 120 € par nuit en province, 170 € par nuit à Paris, petit-déjeuner inclus. [1]",
+  "model": "local-extractive-v1",
+  "fallback_used": true,
+  "usage": {
+    "prompt_tokens": 204,
+    "completion_tokens": 17,
+    "llm_latency_ms": 0.38
+  },
+  "steps": [
+    "guard",
+    "route",
+    "retrieve",
+    "generate:local-extractive-v1",
+    "verify:ok"
+  ],
+  "latency_ms": 761.31
+}
+
+### 5. Métriques Prometheus agrégées sur les 2 workers (/metrics, extrait)
+copilot_llm_fallback_total 4.0
+copilot_requests_total{endpoint="/ready",status="200"} 1.0
+copilot_requests_total{endpoint="/v1/ask",status="200"} 804.0
+copilot_llm_tokens_total{kind="prompt",model="mock-qwen2.5-7b-instruct"} 123156.0
+copilot_llm_tokens_total{kind="completion",model="mock-qwen2.5-7b-instruct"} 13106.0
+copilot_llm_tokens_total{kind="prompt",model="local-extractive-v1"} 816.0
+copilot_llm_tokens_total{kind="completion",model="local-extractive-v1"} 139.0
+copilot_index_chunks 42.0
+copilot_llm_latency_seconds_count{model="mock-qwen2.5-7b-instruct"} 606.0
+copilot_llm_latency_seconds_count{model="local-extractive-v1"} 4.0

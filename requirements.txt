@@ -1,0 +1,8 @@
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+pydantic==2.13.5
+httpx==0.28.1
+numpy==2.5.3
+scikit-learn==1.9.1
+langgraph==1.2.20
+prometheus-client==0.26.0

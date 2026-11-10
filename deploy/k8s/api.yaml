@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: copilot-api
+  namespace: genai-copilot
+  labels: { app: copilot-api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: copilot-api }
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  template:
+    metadata:
+      labels: { app: copilot-api }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+      containers:
+        - name: api
+          image: ghcr.io/djimydamesse/genai-copilot-llmops:latest
+          ports: [{ containerPort: 8080, name: http }]
+          envFrom:
+            - configMapRef: { name: copilot-config }
+            - secretRef: { name: copilot-secrets }
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }
+          readinessProbe:
+            httpGet: { path: /ready, port: 8080 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 15
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: index, mountPath: /app/artifacts }   # index reconstruit au démarrage, réindexable à chaud
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: index
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: copilot-api
+  namespace: genai-copilot
+spec:
+  selector: { app: copilot-api }
+  ports: [{ name: http, port: 80, targetPort: 8080 }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: copilot-api
+  namespace: genai-copilot
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: copilot-api }
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: copilot-api
+  namespace: genai-copilot
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: copilot-api }
