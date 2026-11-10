@@ -7,3 +7,4 @@ mlruns/
 .env
 .venv/
 mlflow.db
+.notebook/
